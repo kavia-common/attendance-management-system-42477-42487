@@ -10,12 +10,15 @@
  * You can opt-in/opt-out via env:
  *   REACT_APP_DISABLE_FAST_REFRESH=true -> always disable fast refresh
  *   REACT_APP_DISABLE_FAST_REFRESH=false -> leave as-is unless a runtime check removes it
+ *   REACT_APP_ENABLE_SOURCE_MAPS=false -> disable devtool/source maps for extra safety
  */
 const path = require('path');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
 const DISABLE_FAST_REFRESH =
   String(process.env.REACT_APP_DISABLE_FAST_REFRESH || '').toLowerCase() === 'true';
+const ENABLE_SOURCE_MAPS =
+  String(process.env.REACT_APP_ENABLE_SOURCE_MAPS || '').toLowerCase() !== 'false';
 
 module.exports = {
   webpack: {
@@ -47,10 +50,22 @@ module.exports = {
         (p) => !(p instanceof CssMinimizerPlugin)
       );
 
+      // 3b) Optionally disable source maps entirely to avoid any consumer/runtime issues.
+      const isDev = webpackConfig.mode === 'development' || process.env.NODE_ENV !== 'production';
+      if (!ENABLE_SOURCE_MAPS) {
+        webpackConfig.devtool = false;
+        if (webpackConfig.plugins) {
+          // CRA sets GENERATE_SOURCEMAP based on env; ensure production source maps are off too
+          process.env.GENERATE_SOURCEMAP = 'false';
+        }
+      } else if (isDev) {
+        // Use cheap source maps in dev for speed and fewer edge cases
+        webpackConfig.devtool = 'cheap-module-source-map';
+      }
+
       // 4) Disable React Fast Refresh plugin if requested or if it causes issues.
       // CRA injects @pmmmwh/react-refresh-webpack-plugin in development.
       // We strip it out based on env switch OR always in development to be robust.
-      const isDev = webpackConfig.mode === 'development' || process.env.NODE_ENV !== 'production';
       if (isDev && webpackConfig.plugins && Array.isArray(webpackConfig.plugins)) {
         // If env toggled or as a robust fallback, remove the plugin
         if (DISABLE_FAST_REFRESH) {
