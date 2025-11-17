@@ -2,12 +2,12 @@ const DEFAULT_BASE = 'http://localhost:3001';
 
 // PUBLIC_INTERFACE
 export const getApiBase = () => {
-  /** Returns the API base URL from env or default. */
+  /** Returns the HTTP API base URL using env vars with sensible defaults. */
   const envBase =
     process.env.REACT_APP_API_BASE ||
     process.env.REACT_APP_BACKEND_URL ||
-    process.env.REACT_APP_WS_URL; // fallback if misconfigured
-  return (envBase || DEFAULT_BASE).replace(/\/+$/, '');
+    '';
+  return (envBase || DEFAULT_BASE).replace(/\/*$/, '');
 };
 
 // Basic fetch wrapper with JSON handling, errors, and query building

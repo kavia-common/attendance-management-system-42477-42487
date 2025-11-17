@@ -1,17 +1,17 @@
-Why we disabled postcss-svgo
+Why we disabled CSS minimization (postcss-svgo path)
 
 Context:
-- react-scripts@5 (CRA v5) uses css-minimizer-webpack-plugin + cssnano, which pulls postcss-svgo.
-- On Node 18 with the dependency graph in this project, postcss-svgo resolves to svgo@2 which depends on css-tree -> source-map, causing a runtime error:
-  Error: Cannot find module './util' (from css-tree/node_modules/source-map/lib/source-map-generator.js)
+- CRA v5 uses css-minimizer-webpack-plugin + cssnano, which pulls postcss-svgo.
+- On Node 18 certain dependency paths lead to css-tree/source-map './util' runtime error.
 
 What we changed:
-- Added postcss.config.js that disables the postcss-svgo plugin. This avoids the failing optimization step while keeping the rest of CSS minification intact.
+- Configured CRACO to remove CssMinimizerPlugin from the build. This avoids the failing optimization step.
+- Also included a postcss.config.js disabling postcss-svgo for extra safety.
 
 Impact:
-- CSS SVG optimization is skipped; other minifications still apply.
-- No change to npm scripts; `react-scripts start` and `react-scripts build` remain the same.
+- CSS minification (esp. SVG optimization) is skipped; JS minification remains enabled.
+- Dev server and production build remain stable on Node 18.
 
 How to re-enable safely (optional):
-- Update dependency graph to versions known to work together (e.g., pin cssnano preset + postcss-svgo to a set compatible with Node 18).
-- Remove the postcss.config.js override once the toolchain is upgraded and tested.
+- Upgrade the cssnano/postcss-svgo toolchain to a set known to work on Node 18.
+- Remove the CRACO minimizer override and the postcss.config.js once verified.

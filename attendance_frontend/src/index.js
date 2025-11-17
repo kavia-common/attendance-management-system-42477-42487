@@ -11,6 +11,7 @@ if (!container) {
   throw new Error("Root element with id 'root' not found. Ensure public/index.html includes <div id=\"root\"></div>.");
 }
 
+// Note: CRA honors PORT env; set PORT=3002 in .env.local to run alongside backend on 3001.
 const root = ReactDOM.createRoot(container);
 root.render(
   // Keep StrictMode; App sets up router internally
