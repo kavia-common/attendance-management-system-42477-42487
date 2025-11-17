@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 
-function UserForm({ initial, onCancel, onSubmit, submitting }) {
-  const [form, setForm] = useState(() => initial || { name: '', email: '' });
+function UserForm({ onCancel, onSubmit, submitting }) {
+  const [form, setForm] = useState({ name: '', email: '' });
   const [touched, setTouched] = useState({ name: false, email: false });
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -19,11 +19,11 @@ function UserForm({ initial, onCancel, onSubmit, submitting }) {
         if (!nameInvalid && !emailInvalid) onSubmit(form);
       }}
       className="card"
-      aria-label={initial?.id ? 'Edit user form' : 'Create user form'}
+      aria-label="Create user form"
       noValidate
     >
       <div className="card-header">
-        <div className="card-title">{initial?.id ? 'Edit User' : 'Create User'}</div>
+        <div className="card-title">Create User</div>
       </div>
       <div className="grid two">
         <div>
@@ -64,12 +64,11 @@ function UserForm({ initial, onCancel, onSubmit, submitting }) {
 
 // PUBLIC_INTERFACE
 export default function UsersPage() {
-  /** Users CRUD page */
+  /** Users page: list and create (backend supports GET/POST) */
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -83,9 +82,8 @@ export default function UsersPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getUsers();
-      const arr = Array.isArray(data) ? data : (data?.data || []);
-      setUsers(arr);
+      const arr = await api.getUsers();
+      setUsers(Array.isArray(arr) ? arr : (arr?.users || []));
     } catch (e) {
       setError(e.message || 'Failed to load users');
     } finally {
@@ -101,35 +99,10 @@ export default function UsersPage() {
       await api.createUser(payload);
       await load();
       setShowForm(false);
-      setEditing(null);
     } catch (e) {
       alert(e?.data?.message || e.message || 'Failed to create user');
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleUpdate(id, payload) {
-    setSubmitting(true);
-    try {
-      await api.updateUser(id, payload);
-      await load();
-      setShowForm(false);
-      setEditing(null);
-    } catch (e) {
-      alert(e?.data?.message || e.message || 'Failed to update user');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this user?')) return;
-    try {
-      await api.deleteUser(id);
-      await load();
-    } catch (e) {
-      alert(e?.data?.message || e.message || 'Failed to delete user');
     }
   }
 
@@ -143,7 +116,7 @@ export default function UsersPage() {
           </div>
           <div className="toolbar">
             <input className="input" placeholder="Search users…" value={query} onChange={(e) => setQuery(e.target.value)} />
-            <button className="btn" onClick={() => { setShowForm(true); setEditing(null); }}>New User</button>
+            <button className="btn" onClick={() => { setShowForm(true); }}>New User</button>
           </div>
         </div>
         {loading ? (
@@ -158,25 +131,18 @@ export default function UsersPage() {
                   <th style={{ width: 80 }}>ID</th>
                   <th>Name</th>
                   <th>Email</th>
-                  <th style={{ width: 170 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((u) => (
-                  <tr key={u.id || u._id || `${u.email}-${u.name}`}>
-                    <td>{u.id || u._id || '-'}</td>
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
                     <td>{u.name}</td>
                     <td>{u.email}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn ghost" onClick={() => { setEditing(u); setShowForm(true); }}>Edit</button>
-                        <button className="btn danger" onClick={() => handleDelete(u.id || u._id)}>Delete</button>
-                      </div>
-                    </td>
                   </tr>
                 ))}
                 {!filtered.length && (
-                  <tr><td colSpan={4} className="helper">No users found.</td></tr>
+                  <tr><td colSpan={3} className="helper">No users found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -186,16 +152,9 @@ export default function UsersPage() {
 
       {showForm && (
         <UserForm
-          initial={editing}
           submitting={submitting}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
-          onSubmit={(payload) => {
-            if (editing?.id || editing?._id) {
-              handleUpdate(editing.id || editing._id, payload);
-            } else {
-              handleCreate(payload);
-            }
-          }}
+          onCancel={() => { setShowForm(false); }}
+          onSubmit={(payload) => { handleCreate(payload); }}
         />
       )}
     </div>

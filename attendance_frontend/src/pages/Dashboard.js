@@ -8,7 +8,7 @@ export default function Dashboard() {
    * Attempts to use /api/summary if available; otherwise falls back to fetching users/attendance and counting.
    */
   const [loading, setLoading] = useState(true);
-  const [health, setHealth] = useState(null);
+  const [health, setHealth] = useState({ status: 'checking' });
   const [stats, setStats] = useState({ totalUsers: 0, todayRecords: 0 });
   const [error, setError] = useState(null);
 
@@ -36,8 +36,8 @@ export default function Dashboard() {
           ]);
           if (isMounted) {
             setStats({
-              totalUsers: Array.isArray(users) ? users.length : (users?.data?.length || 0),
-              todayRecords: Array.isArray(attendance) ? attendance.length : (attendance?.data?.length || 0),
+              totalUsers: Array.isArray(users) ? users.length : (users?.length || 0),
+              todayRecords: Array.isArray(attendance) ? attendance.length : (attendance?.length || 0),
             });
           }
         }
@@ -51,6 +51,8 @@ export default function Dashboard() {
     return () => { isMounted = false; };
   }, []);
 
+  const healthy = health?.status === 'healthy';
+
   return (
     <div className="container">
       <div className="card">
@@ -63,12 +65,12 @@ export default function Dashboard() {
             className="badge"
             aria-live="polite"
             style={{
-              background: health?.status ? 'rgba(16,185,129,0.08)' : '#fff',
-              borderColor: health?.status ? 'rgba(16,185,129,0.3)' : 'var(--border)',
-              color: health?.status ? '#065f46' : 'inherit'
+              background: healthy ? 'rgba(16,185,129,0.08)' : '#fff',
+              borderColor: healthy ? 'rgba(16,185,129,0.3)' : 'var(--border)',
+              color: healthy ? '#065f46' : 'inherit'
             }}
           >
-            {health?.status ? 'Healthy' : 'Checking…'}
+            {healthy ? 'Healthy' : (health?.status || 'Checking…')}
           </span>
         </div>
         {loading ? (
@@ -90,7 +92,7 @@ export default function Dashboard() {
             <div className="stat">
               <div className="label">API Health</div>
               <div className="value">{health?.status || 'unknown'}</div>
-              <div className="hint">/api/health</div>
+              <div className="hint">GET /</div>
             </div>
           </div>
         )}

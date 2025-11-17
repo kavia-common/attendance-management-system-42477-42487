@@ -5,8 +5,8 @@ Modern, lightweight UI built with React (CRA + CRACO) using the Ocean Profession
 ## Features
 
 - Dashboard: quick stats (API health, total users, today's records)
-- Users: list, create, edit, delete
-- Attendance: list, filter by user/date, add new log (status + timestamp)
+- Users: list and create
+- Attendance: list, filter by user/date, add new log (status + date)
 - Routing: React Router v6 with routes `/`, `/users`, `/attendance`
 - Central API client targeting Flask backend at `http://localhost:3001` (configurable)
 
@@ -16,8 +16,11 @@ Create `.env.local` (see `.env.local.example`):
 
 ```
 REACT_APP_API_BASE=http://localhost:3001
-PORT=3002
+# PORT=3000
 ```
+
+- In cloud previews both frontend and backend are exposed over HTTPS. Keep REACT_APP_API_BASE pointing to the backend URL (the platform maps http://localhost:3001 appropriately).
+- In local development, the dev proxy (src/setupProxy.js) forwards /api requests to the backend on port 3001 to avoid CORS/mixed-content.
 
 Ensure the backend allows CORS and is reachable on port 3001.
 

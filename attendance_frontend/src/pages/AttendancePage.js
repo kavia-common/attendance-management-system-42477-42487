@@ -3,16 +3,17 @@ import api from '../api/client';
 
 function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
   const [form, setForm] = useState({
-    user_id: '',
+    userId: '',
     status: 'present',
     timestamp: new Date().toISOString().slice(0, 16), // input type=datetime-local format (YYYY-MM-DDTHH:mm)
+    notes: ''
   });
-  const [touched, setTouched] = useState({ user_id: false, timestamp: false });
+  const [touched, setTouched] = useState({ userId: false, timestamp: false });
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   const onBlur = (e) => setTouched((t) => ({ ...t, [e.target.name]: true }));
 
-  const userInvalid = touched.user_id && !form.user_id;
+  const userInvalid = touched.userId && !form.userId;
   const tsInvalid = touched.timestamp && !form.timestamp;
 
   return (
@@ -20,8 +21,8 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
       className="card"
       onSubmit={(e) => {
         e.preventDefault();
-        setTouched({ user_id: true, timestamp: true });
-        if (form.user_id && form.timestamp) {
+        setTouched({ userId: true, timestamp: true });
+        if (form.userId && form.timestamp) {
           const payload = { ...form, timestamp: new Date(form.timestamp).toISOString() };
           onSubmit(payload);
         }
@@ -36,16 +37,16 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
         <div>
           <label className="helper">User</label>
           <select
-            className={`select ${userInvalid ? 'is-invalid' : touched.user_id ? 'is-valid' : ''}`}
-            name="user_id"
-            value={form.user_id}
+            className={`select ${userInvalid ? 'is-invalid' : touched.userId ? 'is-valid' : ''}`}
+            name="userId"
+            value={form.userId}
             onChange={onChange}
             onBlur={onBlur}
             required
           >
             <option value="" disabled>Select user</option>
             {users.map((u) => (
-              <option key={u.id || u._id} value={u.id || u._id}>{u.name} ({u.email})</option>
+              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
             ))}
           </select>
           {userInvalid ? <div className="form-error">Please select a user.</div> : <div className="form-help">Choose the user for this entry.</div>}
@@ -55,8 +56,7 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
           <select className="select" name="status" value={form.status} onChange={onChange}>
             <option value="present">Present</option>
             <option value="absent">Absent</option>
-            <option value="check-in">Check-in</option>
-            <option value="check-out">Check-out</option>
+            <option value="late">Late</option>
           </select>
         </div>
         <div>
@@ -71,6 +71,16 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
             required
           />
           {tsInvalid ? <div className="form-error">Timestamp is required.</div> : <div className="form-help">Local date and time for the record.</div>}
+        </div>
+        <div>
+          <label className="helper">Notes</label>
+          <input
+            className="input"
+            name="notes"
+            value={form.notes}
+            onChange={onChange}
+            placeholder="Optional notes"
+          />
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -91,7 +101,7 @@ export default function AttendancePage() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const [filters, setFilters] = useState({ user_id: '', date: '' });
+  const [filters, setFilters] = useState({ userId: '', date: '' });
   const onFilter = (e) => setFilters((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const filtered = useMemo(() => records, [records]); // server-side filtering
@@ -102,11 +112,12 @@ export default function AttendancePage() {
     try {
       const [userList, attendanceList] = await Promise.all([
         api.getUsers().catch(() => []),
-        api.getAttendance({ user_id: filters.user_id || undefined, date: filters.date || undefined }),
+        api.getAttendance({ userId: filters.userId || undefined, date: filters.date || undefined }),
       ]);
-      setUsers(Array.isArray(userList) ? userList : (userList?.data || []));
-      const arr = Array.isArray(attendanceList) ? attendanceList : (attendanceList?.data || []);
-      setRecords(arr);
+      const usersArr = Array.isArray(userList) ? userList : (userList?.users || []);
+      setUsers(usersArr);
+      const attArr = Array.isArray(attendanceList) ? attendanceList : (attendanceList?.attendance || []);
+      setRecords(attArr);
     } catch (e) {
       setError(e.message || 'Failed to load attendance');
     } finally {
@@ -115,7 +126,7 @@ export default function AttendancePage() {
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.user_id, filters.date]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.userId, filters.date]);
 
   async function handleCreate(payload) {
     setSubmitting(true);
@@ -139,10 +150,10 @@ export default function AttendancePage() {
             <div className="card-subtitle">Browse, filter, and log entries</div>
           </div>
           <div className="toolbar">
-            <select className="select" name="user_id" value={filters.user_id} onChange={onFilter}>
+            <select className="select" name="userId" value={filters.userId} onChange={onFilter}>
               <option value="">All users</option>
               {users.map((u) => (
-                <option key={u.id || u._id} value={u.id || u._id}>{u.name}</option>
+                <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>
             <input className="input" type="date" name="date" value={filters.date} onChange={onFilter} />
@@ -161,16 +172,16 @@ export default function AttendancePage() {
                   <th style={{ width: 80 }}>ID</th>
                   <th>User</th>
                   <th>Status</th>
-                  <th>Timestamp</th>
+                  <th>Date</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id || r._id}>
-                    <td>{r.id || r._id}</td>
-                    <td>{r.user_name || r.user?.name || r.user_id}</td>
+                  <tr key={r.id}>
+                    <td>{r.id}</td>
+                    <td>{r.userId}</td>
                     <td><span className="badge">{r.status}</span></td>
-                    <td>{r.timestamp ? new Date(r.timestamp).toLocaleString() : '-'}</td>
+                    <td>{r.date}</td>
                   </tr>
                 ))}
                 {!filtered.length && (
