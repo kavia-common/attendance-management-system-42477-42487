@@ -7,13 +7,27 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
     status: 'present',
     timestamp: new Date().toISOString().slice(0, 16), // input type=datetime-local format (YYYY-MM-DDTHH:mm)
   });
+  const [touched, setTouched] = useState({ user_id: false, timestamp: false });
+
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const onBlur = (e) => setTouched((t) => ({ ...t, [e.target.name]: true }));
+
+  const userInvalid = touched.user_id && !form.user_id;
+  const tsInvalid = touched.timestamp && !form.timestamp;
 
   return (
     <form
       className="card"
-      onSubmit={(e) => { e.preventDefault(); const payload = { ...form, timestamp: new Date(form.timestamp).toISOString() }; onSubmit(payload); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        setTouched({ user_id: true, timestamp: true });
+        if (form.user_id && form.timestamp) {
+          const payload = { ...form, timestamp: new Date(form.timestamp).toISOString() };
+          onSubmit(payload);
+        }
+      }}
       aria-label="Create attendance record form"
+      noValidate
     >
       <div className="card-header">
         <div className="card-title">Log Attendance</div>
@@ -21,12 +35,20 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
       <div className="grid two">
         <div>
           <label className="helper">User</label>
-          <select className="select" name="user_id" value={form.user_id} onChange={onChange} required>
+          <select
+            className={`select ${userInvalid ? 'is-invalid' : touched.user_id ? 'is-valid' : ''}`}
+            name="user_id"
+            value={form.user_id}
+            onChange={onChange}
+            onBlur={onBlur}
+            required
+          >
             <option value="" disabled>Select user</option>
             {users.map((u) => (
               <option key={u.id || u._id} value={u.id || u._id}>{u.name} ({u.email})</option>
             ))}
           </select>
+          {userInvalid ? <div className="form-error">Please select a user.</div> : <div className="form-help">Choose the user for this entry.</div>}
         </div>
         <div>
           <label className="helper">Status</label>
@@ -40,13 +62,15 @@ function AttendanceForm({ users, onCancel, onSubmit, submitting }) {
         <div>
           <label className="helper">Timestamp</label>
           <input
-            className="input"
+            className={`input ${tsInvalid ? 'is-invalid' : touched.timestamp ? 'is-valid' : ''}`}
             type="datetime-local"
             name="timestamp"
             value={form.timestamp}
             onChange={onChange}
+            onBlur={onBlur}
             required
           />
+          {tsInvalid ? <div className="form-error">Timestamp is required.</div> : <div className="form-help">Local date and time for the record.</div>}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

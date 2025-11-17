@@ -3,16 +3,24 @@ import api from '../api/client';
 
 function UserForm({ initial, onCancel, onSubmit, submitting }) {
   const [form, setForm] = useState(() => initial || { name: '', email: '' });
+  const [touched, setTouched] = useState({ name: false, email: false });
+
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const onBlur = (e) => setTouched((t) => ({ ...t, [e.target.name]: true }));
+
+  const nameInvalid = touched.name && !form.name?.trim();
+  const emailInvalid = touched.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email || '');
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit(form);
+        setTouched({ name: true, email: true });
+        if (!nameInvalid && !emailInvalid) onSubmit(form);
       }}
       className="card"
       aria-label={initial?.id ? 'Edit user form' : 'Create user form'}
+      noValidate
     >
       <div className="card-header">
         <div className="card-title">{initial?.id ? 'Edit User' : 'Create User'}</div>
@@ -20,11 +28,30 @@ function UserForm({ initial, onCancel, onSubmit, submitting }) {
       <div className="grid two">
         <div>
           <label className="helper">Name</label>
-          <input className="input" name="name" value={form.name || ''} onChange={onChange} required placeholder="Jane Doe" />
+          <input
+            className={`input ${nameInvalid ? 'is-invalid' : touched.name ? 'is-valid' : ''}`}
+            name="name"
+            value={form.name || ''}
+            onChange={onChange}
+            onBlur={onBlur}
+            required
+            placeholder="Jane Doe"
+          />
+          {nameInvalid ? <div className="form-error">Name is required.</div> : <div className="form-help">Full name of the user.</div>}
         </div>
         <div>
           <label className="helper">Email</label>
-          <input className="input" name="email" type="email" value={form.email || ''} onChange={onChange} required placeholder="jane@example.com" />
+          <input
+            className={`input ${emailInvalid ? 'is-invalid' : touched.email ? 'is-valid' : ''}`}
+            name="email"
+            type="email"
+            value={form.email || ''}
+            onChange={onChange}
+            onBlur={onBlur}
+            required
+            placeholder="jane@example.com"
+          />
+          {emailInvalid ? <div className="form-error">Enter a valid email address.</div> : <div className="form-help">Used for login and contact.</div>}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

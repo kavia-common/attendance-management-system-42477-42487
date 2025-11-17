@@ -59,7 +59,17 @@ export default function Dashboard() {
             <div className="card-title">Welcome</div>
             <div className="card-subtitle">API: {getApiBase()}</div>
           </div>
-          <span className="badge" aria-live="polite">{health?.status ? 'Healthy' : 'Checking…'}</span>
+          <span
+            className="badge"
+            aria-live="polite"
+            style={{
+              background: health?.status ? 'rgba(16,185,129,0.08)' : '#fff',
+              borderColor: health?.status ? 'rgba(16,185,129,0.3)' : 'var(--border)',
+              color: health?.status ? '#065f46' : 'inherit'
+            }}
+          >
+            {health?.status ? 'Healthy' : 'Checking…'}
+          </span>
         </div>
         {loading ? (
           <div className="helper">Loading dashboard…</div>
