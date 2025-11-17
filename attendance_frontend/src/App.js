@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
 import './App.css';
 
 // PUBLIC_INTERFACE
@@ -26,7 +25,7 @@ function App() {
         >
           {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
         </button>
-        <img src={logo} className="App-logo" alt="logo" />
+        <h1 className="App-logo" aria-label="React App">React App</h1>
         <p>
           Edit <code>src/App.js</code> and save to reload.
         </p>
