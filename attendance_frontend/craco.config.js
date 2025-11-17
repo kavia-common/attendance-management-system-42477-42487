@@ -1,40 +1,58 @@
 'use strict';
 
 /**
- * CRACO configuration to harden CRA builds on Node 18:
+ * CRACO configuration hardened for Node 18 and with React Fast Refresh fully disabled:
  * - Remove CssMinimizerPlugin (postcss-svgo/css-tree/source-map './util' path)
  * - Add resolve.alias to force 'source-map' to a compatible version (0.6.1)
- * - Disable React Fast Refresh to avoid "SourceMapConsumer.with is not a function" failures
- *   by removing @pmmmwh/react-refresh-webpack-plugin from plugins when needed.
+ * - Fully disable React Fast Refresh plugin in ALL modes (development and production) so
+ *   react-refresh runtime and $RefreshSig/$RefreshReg helpers are never emitted.
+ * - Ensure devServer hot is standard HMR (no react-refresh), and configure Babel to exclude
+ *   react-refresh/babel via CRACO babel override.
  *
- * You can opt-in/opt-out via env:
- *   REACT_APP_DISABLE_FAST_REFRESH=true -> always disable fast refresh
- *   REACT_APP_DISABLE_FAST_REFRESH=false -> leave as-is unless a runtime check removes it
+ * Env toggles:
+ *   REACT_APP_DISABLE_FAST_REFRESH=true -> keep fast refresh disabled (default behavior here)
  *   REACT_APP_ENABLE_SOURCE_MAPS=false -> disable devtool/source maps for extra safety
  */
 const path = require('path');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
-const DISABLE_FAST_REFRESH =
-  String(process.env.REACT_APP_DISABLE_FAST_REFRESH || '').toLowerCase() === 'true';
 const ENABLE_SOURCE_MAPS =
   String(process.env.REACT_APP_ENABLE_SOURCE_MAPS || '').toLowerCase() !== 'false';
 
+function stripReactRefreshPlugins(list) {
+  if (!Array.isArray(list)) return list;
+  return list.filter((plugin) => {
+    const name = plugin && plugin.constructor && plugin.constructor.name;
+    // Remove @pmmmwh/react-refresh-webpack-plugin
+    return name !== 'ReactRefreshPlugin';
+  });
+}
+
 module.exports = {
+  // Ensure CRA's Babel pipeline does NOT inject react-refresh/babel
+  babel: {
+    plugins: (plugins) => {
+      // Filter out react-refresh/babel if it ever appears
+      return (plugins || []).filter((p) => {
+        if (!p) return false === false; // keep others
+        const name = Array.isArray(p) ? p[0] : p;
+        return !(typeof name === 'string' && name.includes('react-refresh/babel'));
+      });
+    },
+  },
   webpack: {
     configure: (webpackConfig) => {
-      // 1) Ensure resolve and alias exist
+      // Ensure resolve and alias exist
       webpackConfig.resolve = webpackConfig.resolve || {};
       webpackConfig.resolve.alias = webpackConfig.resolve.alias || {};
 
-      // 2) Force 'source-map' to a compatible v0.6 API to prevent SourceMapConsumer.with runtime issues.
-      // This path is resolved from the project's node_modules; the exact version is pinned via package.json overrides.
+      // Force 'source-map' to a compatible v0.6 API
       webpackConfig.resolve.alias['source-map'] = path.resolve(
         __dirname,
         'node_modules/source-map'
       );
 
-      // 3) Remove CssMinimizerPlugin to avoid css-tree/source-map './util' issue in Node 18
+      // Remove CssMinimizerPlugin to avoid css-tree/source-map './util' issue in Node 18
       if (webpackConfig.optimization && Array.isArray(webpackConfig.optimization.minimizer)) {
         webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
           (minimizer) =>
@@ -46,53 +64,32 @@ module.exports = {
         );
       }
       // Safety net: also remove any plugin instance references
-      webpackConfig.plugins = (webpackConfig.plugins || []).filter(
-        (p) => !(p instanceof CssMinimizerPlugin)
+      webpackConfig.plugins = stripReactRefreshPlugins(
+        (webpackConfig.plugins || []).filter((p) => !(p instanceof CssMinimizerPlugin))
       );
 
-      // 3b) Optionally disable source maps entirely to avoid any consumer/runtime issues.
+      // Optionally disable source maps entirely
       const isDev = webpackConfig.mode === 'development' || process.env.NODE_ENV !== 'production';
       if (!ENABLE_SOURCE_MAPS) {
         webpackConfig.devtool = false;
-        if (webpackConfig.plugins) {
-          // CRA sets GENERATE_SOURCEMAP based on env; ensure production source maps are off too
-          process.env.GENERATE_SOURCEMAP = 'false';
-        }
+        process.env.GENERATE_SOURCEMAP = 'false';
       } else if (isDev) {
-        // Use cheap source maps in dev for speed and fewer edge cases
         webpackConfig.devtool = 'cheap-module-source-map';
       }
 
-      // 4) Disable React Fast Refresh plugin if requested or if it causes issues.
-      // CRA injects @pmmmwh/react-refresh-webpack-plugin in development.
-      // We strip it out based on env switch OR always in development to be robust.
-      if (isDev && webpackConfig.plugins && Array.isArray(webpackConfig.plugins)) {
-        // If env toggled or as a robust fallback, remove the plugin
-        if (DISABLE_FAST_REFRESH) {
-          webpackConfig.plugins = webpackConfig.plugins.filter((plugin) => {
-            const name = plugin && plugin.constructor && plugin.constructor.name;
-            return name !== 'ReactRefreshPlugin';
-          });
-        } else {
-          // Even when not explicitly disabled via env, defensively remove the plugin
-          // if its presence would cause known sourcemap runtime issues.
-          webpackConfig.plugins = webpackConfig.plugins.filter((plugin) => {
-            const name = plugin && plugin.constructor && plugin.constructor.name;
-            return name !== 'ReactRefreshPlugin';
-          });
-        }
+      // Remove React Refresh plugin from any remaining plugin arrays (defensive)
+      if (Array.isArray(webpackConfig.plugins)) {
+        webpackConfig.plugins = stripReactRefreshPlugins(webpackConfig.plugins);
+      }
 
-        // Additionally, ensure devServer hot settings don't try to use react-refresh runtime
-        if (webpackConfig.devServer) {
-          // Keep HMR enabled but without react-refresh specifics
-          webpackConfig.devServer.hot = true;
-          // Prevent overlay errors from fast refresh pathway
-          if (typeof webpackConfig.devServer.client === 'object') {
-            webpackConfig.devServer.client.overlay = {
-              errors: true,
-              warnings: false,
-            };
-          }
+      // Ensure devServer does not try to use react-refresh runtime; use plain HMR
+      if (webpackConfig.devServer) {
+        webpackConfig.devServer.hot = true;
+        if (typeof webpackConfig.devServer.client === 'object') {
+          webpackConfig.devServer.client.overlay = {
+            errors: true,
+            warnings: false,
+          };
         }
       }
 

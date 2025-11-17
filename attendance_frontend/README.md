@@ -32,3 +32,4 @@ Ensure the backend allows CORS and is reachable on port 3001.
 - Styling in `src/theme.css` (Ocean Professional: blue `#2563EB`, amber `#F59E0B`)
 - No heavy UI libraries; pure CSS components
 - CSS minification adjustments present to support Node 18
+- React Fast Refresh is intentionally disabled to avoid runtime `$RefreshSig` errors. Env flags: `FAST_REFRESH=false`, `REACT_APP_DISABLE_FAST_REFRESH=true`. CRACO removes the refresh plugin and Babel transform.
