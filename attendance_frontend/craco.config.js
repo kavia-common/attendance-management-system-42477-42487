@@ -28,6 +28,31 @@ function stripReactRefreshPlugins(list) {
   });
 }
 
+/**
+ * Remove react-refresh/babel from any babel-loader occurrences within module.rules.
+ */
+function stripReactRefreshFromRules(rules) {
+  if (!Array.isArray(rules)) return rules;
+  for (const rule of rules) {
+    if (!rule) continue;
+    if (rule.use) {
+      const uses = Array.isArray(rule.use) ? rule.use : [rule.use];
+      uses.forEach((u) => {
+        const loader = u && (u.loader || u.loaderName || u.loaderPath || '');
+        if (loader && String(loader).includes('babel-loader') && u.options && u.options.plugins) {
+          u.options.plugins = (u.options.plugins || []).filter((p) => {
+            const name = Array.isArray(p) ? p[0] : p;
+            return !(typeof name === 'string' && name.includes('react-refresh/babel'));
+          });
+        }
+      });
+    }
+    if (rule.oneOf) stripReactRefreshFromRules(rule.oneOf);
+    if (rule.rules) stripReactRefreshFromRules(rule.rules);
+  }
+  return rules;
+}
+
 module.exports = {
   // Ensure CRA's Babel pipeline does NOT inject react-refresh/babel
   babel: {
@@ -80,6 +105,11 @@ module.exports = {
       // Remove React Refresh plugin from any remaining plugin arrays (defensive)
       if (Array.isArray(webpackConfig.plugins)) {
         webpackConfig.plugins = stripReactRefreshPlugins(webpackConfig.plugins);
+      }
+
+      // Strip any react-refresh/babel transform from babel-loader inside rules (defensive)
+      if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
+        webpackConfig.module.rules = stripReactRefreshFromRules(webpackConfig.module.rules);
       }
 
       // Ensure devServer does not try to use react-refresh runtime; use plain HMR
